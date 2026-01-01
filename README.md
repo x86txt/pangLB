@@ -2,19 +2,41 @@
 
 A lightweight health check server designed for monitoring of Pangolin (Newt) tunnel services. This service checks for the presence of a health file and returns HTTP 200 (OK) or 503 (Service Unavailable) accordingly, enabling Cloudflare (or the service of your choice) to perform health-based load balancing across multiple tunnel instances.
 
-## Features
-
-- **Health File Monitoring**: Checks for the presence of a health file (default: `/run/newt/healthy`)
-- **File Age Validation**: Optional maximum age check to ensure the health file is recently updated
-- **Cloudflare Integration**: Returns appropriate HTTP status codes (200/503) for Cloudflare health monitors
-- **Optional Systemd Integration**: Can optionally check systemd unit status
-- **TLS Support**: Optional TLS/HTTPS support for secure monitoring
-- **Graceful Shutdown**: Handles SIGINT and SIGTERM signals gracefully
-- **JSON Health Endpoint**: Provides detailed health status in JSON format
-
 ## Installation
 
-<!-- Installation instructions will be provided here -->
+### Quick Install
+
+Run one of these commands to install pangLB:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/x86txt/pangLB/main/install.sh | sudo bash
+```
+
+or
+
+```bash
+wget -qO- https://raw.githubusercontent.com/x86txt/pangLB/main/install.sh | sudo bash
+```
+
+The installer will:
+- Download and install the latest release binary for your platform
+- Install and configure the systemd service
+- Set up TLS certificates (you can choose to generate self-signed or provide your own)
+- Enable and start the service
+
+### Uninstall
+
+To remove pangLB:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/x86txt/pangLB/main/install.sh | sudo bash -s -- --uninstall
+```
+
+or
+
+```bash
+sudo ./install.sh --uninstall
+```
 
 ## Environment Variables
 

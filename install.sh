@@ -1,10 +1,14 @@
 #!/bin/bash
 #
-# Installation script for pangLB (Newt Health Daemon)
+# Installation/uninstallation script for pangLB (Newt Health Daemon)
 #
 # Easy install (run one of these commands):
 #   curl -fsSL https://raw.githubusercontent.com/x86txt/pangLB/main/install.sh | sudo bash
 #   wget -qO- https://raw.githubusercontent.com/x86txt/pangLB/main/install.sh | sudo bash
+#
+# Uninstall:
+#   curl -fsSL https://raw.githubusercontent.com/x86txt/pangLB/main/install.sh | sudo bash -s -- --uninstall
+#   sudo ./install.sh --uninstall
 #
 # Or download and run manually:
 #   curl -fsSL -o install.sh https://raw.githubusercontent.com/x86txt/pangLB/main/install.sh
@@ -40,6 +44,70 @@ error() {
     echo -e "${RED}[ERROR]${NC} $1"
     exit 1
 }
+
+# Uninstall function
+uninstall() {
+    info "Starting uninstall process..."
+    
+    # Check if running on Linux
+    if [[ "$OSTYPE" != "linux-gnu"* ]]; then
+        error "This uninstaller is designed for Linux systems with systemd. Detected OS: $OSTYPE"
+    fi
+    
+    # Check for systemctl
+    if ! command -v systemctl &> /dev/null; then
+        error "Required command 'systemctl' is not installed."
+    fi
+    
+    # Stop and disable service if it exists
+    if systemctl list-unit-files --type=service | grep -q "^${SERVICE_FILE}"; then
+        info "Stopping and disabling ${SERVICE_FILE}..."
+        sudo systemctl stop "$SERVICE_FILE" 2>/dev/null || warn "Service was not running"
+        sudo systemctl disable "$SERVICE_FILE" 2>/dev/null || warn "Service was not enabled"
+    else
+        info "Service ${SERVICE_FILE} not found, skipping..."
+    fi
+    
+    # Remove service file
+    if [ -f "/etc/systemd/system/${SERVICE_FILE}" ]; then
+        info "Removing systemd service file..."
+        sudo rm -f "/etc/systemd/system/${SERVICE_FILE}"
+        sudo systemctl daemon-reload
+    else
+        info "Service file not found, skipping..."
+    fi
+    
+    # Remove binary
+    if [ -f "${INSTALL_DIR}/${BINARY_NAME}" ]; then
+        info "Removing binary from ${INSTALL_DIR}/${BINARY_NAME}..."
+        sudo rm -f "${INSTALL_DIR}/${BINARY_NAME}"
+    else
+        info "Binary not found, skipping..."
+    fi
+    
+    # Ask about certificates
+    if [ -d "$CERT_DIR" ]; then
+        echo
+        read -p "Do you want to remove TLS certificates from ${CERT_DIR}? (y/n) " -n 1 -r < /dev/tty
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            info "Removing TLS certificates..."
+            sudo rm -rf "$CERT_DIR"
+        else
+            info "Keeping TLS certificates at ${CERT_DIR}/"
+        fi
+    fi
+    
+    echo
+    info "Uninstall completed successfully!"
+    echo
+    exit 0
+}
+
+# Check for uninstall flag
+if [[ "${1:-}" == "--uninstall" ]] || [[ "${1:-}" == "-u" ]]; then
+    uninstall
+fi
 
 # Check if running on Linux
 if [[ "$OSTYPE" != "linux-gnu"* ]]; then
@@ -124,7 +192,7 @@ sudo install -m 644 "$SERVICE_TMP" "/etc/systemd/system/${SERVICE_FILE}"
 info "Checking TLS certificate configuration..."
 if [ -f "${CERT_DIR}/tls.crt" ] && [ -f "${CERT_DIR}/tls.key" ]; then
     info "TLS certificates already exist at ${CERT_DIR}/"
-    read -p "Do you want to use existing certificates? (y/n) " -n 1 -r
+    read -p "Do you want to use existing certificates? (y/n) " -n 1 -r < /dev/tty
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         CERT_EXISTS=false
@@ -140,7 +208,7 @@ if [ "$CERT_EXISTS" = false ]; then
     echo "TLS certificate setup:"
     echo "1) Generate a self-signed certificate automatically"
     echo "2) Provide your own certificate files"
-    read -p "Choose an option (1 or 2): " -n 1 -r
+    read -p "Choose an option (1 or 2): " -n 1 -r < /dev/tty
     echo
     
     if [[ $REPLY =~ ^[1]$ ]]; then
@@ -163,8 +231,8 @@ if [ "$CERT_EXISTS" = false ]; then
         info "Certificate generated successfully at ${CERT_DIR}/"
     elif [[ $REPLY =~ ^[2]$ ]]; then
         info "Please provide your certificate files."
-        read -p "Path to certificate file (.crt or .pem): " CERT_PATH
-        read -p "Path to private key file (.key): " KEY_PATH
+        read -p "Path to certificate file (.crt or .pem): " CERT_PATH < /dev/tty
+        read -p "Path to private key file (.key): " KEY_PATH < /dev/tty
         
         if [ ! -f "$CERT_PATH" ]; then
             error "Certificate file not found: $CERT_PATH"
