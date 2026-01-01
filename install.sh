@@ -88,7 +88,11 @@ uninstall() {
     # Ask about certificates
     if [ -d "$CERT_DIR" ]; then
         echo
-        read -p "Do you want to remove TLS certificates from ${CERT_DIR}? (y/n) " -n 1 -r < /dev/tty
+        if [ -t 0 ]; then
+            read -p "Do you want to remove TLS certificates from ${CERT_DIR}? (y/n) " -n 1 -r
+        else
+            read -p "Do you want to remove TLS certificates from ${CERT_DIR}? (y/n) " -n 1 -r < /dev/tty
+        fi
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             info "Removing TLS certificates..."
@@ -190,9 +194,31 @@ sudo install -m 644 "$SERVICE_TMP" "/etc/systemd/system/${SERVICE_FILE}"
 
 # Handle TLS certificates
 info "Checking TLS certificate configuration..."
+
+# Function to read from terminal (works even when script is piped)
+read_terminal() {
+    local prompt="$1"
+    local single_char="${2:-}"
+    if [ -t 0 ]; then
+        # Stdin is a terminal, use it
+        if [ "$single_char" = "1" ]; then
+            read -p "$prompt" -n 1 -r
+        else
+            read -p "$prompt"
+        fi
+    else
+        # Stdin is piped, read from /dev/tty
+        if [ "$single_char" = "1" ]; then
+            read -p "$prompt" -n 1 -r < /dev/tty
+        else
+            read -p "$prompt" < /dev/tty
+        fi
+    fi
+}
+
 if [ -f "${CERT_DIR}/tls.crt" ] && [ -f "${CERT_DIR}/tls.key" ]; then
     info "TLS certificates already exist at ${CERT_DIR}/"
-    read -p "Do you want to use existing certificates? (y/n) " -n 1 -r < /dev/tty
+    read_terminal "Do you want to use existing certificates? (y/n) " 1
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         CERT_EXISTS=false
@@ -208,7 +234,7 @@ if [ "$CERT_EXISTS" = false ]; then
     echo "TLS certificate setup:"
     echo "1) Generate a self-signed certificate automatically"
     echo "2) Provide your own certificate files"
-    read -p "Choose an option (1 or 2): " -n 1 -r < /dev/tty
+    read_terminal "Choose an option (1 or 2): " 1
     echo
     
     if [[ $REPLY =~ ^[1]$ ]]; then
@@ -231,8 +257,10 @@ if [ "$CERT_EXISTS" = false ]; then
         info "Certificate generated successfully at ${CERT_DIR}/"
     elif [[ $REPLY =~ ^[2]$ ]]; then
         info "Please provide your certificate files."
-        read -p "Path to certificate file (.crt or .pem): " CERT_PATH < /dev/tty
-        read -p "Path to private key file (.key): " KEY_PATH < /dev/tty
+        read_terminal "Path to certificate file (.crt or .pem): " 0
+        CERT_PATH="$REPLY"
+        read_terminal "Path to private key file (.key): " 0
+        KEY_PATH="$REPLY"
         
         if [ ! -f "$CERT_PATH" ]; then
             error "Certificate file not found: $CERT_PATH"
