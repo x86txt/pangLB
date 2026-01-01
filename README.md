@@ -1,6 +1,6 @@
-# Pangolin Tunnel Ingress Load Balancing via Cloudflare
-
-A lightweight health check server designed for Cloudflare monitoring of Pangolin (Newt) tunnel services. This service checks for the presence of a health file and returns HTTP 200 (OK) or 503 (Service Unavailable) accordingly, enabling Cloudflare to perform health-based load balancing across multiple tunnel instances.
+# Pangolin Tunnel Ingress Load Balancing Healthcheck
+## with guidance on how to build it out using Cloudflare Load Balancing or Cron
+A lightweight health check server designed for monitoring of Pangolin (Newt) tunnel services. This service checks for the presence of a health file and returns HTTP 200 (OK) or 503 (Service Unavailable) accordingly, enabling Cloudflare (or the service of your choice) to perform health-based load balancing across multiple tunnel instances.
 
 ## Features
 

@@ -1,0 +1,42 @@
+[Unit]
+Description=Newt health endpoint for Cloudflare LB
+After=network-online.target newt.service
+Wants=network-online.target
+Requires=newt.service
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+
+# Use Newt’s health-file signal
+Environment=NEWT_HEALTH_FILE=/run/newt/healthy
+Environment=MAX_AGE=2m
+Environment=LISTEN_ADDR=:8443
+
+# Optional: also require systemd to report newt active
+Environment=CHECK_SYSTEMD=false
+Environment=SYSTEMD_UNIT=newt
+Environment=SYSTEMD_TIMEOUT=1s
+
+# TLS: provide cert+key paths (recommended if Cloudflare monitor is HTTPS)
+Environment=TLS_CERT_FILE=/etc/ssl/newt-health/tls.crt
+Environment=TLS_KEY_FILE=/etc/ssl/newt-health/tls.key
+
+ExecStart=/usr/local/bin/newt-healthd
+Restart=always
+RestartSec=2
+
+# Hardening (safe defaults)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/newt
+CapabilityBoundingSet=
+AmbientCapabilities=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target

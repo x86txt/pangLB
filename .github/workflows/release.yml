@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on semantic version tags (e.g., v1.0.0, v2.1.3)
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating releases
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for version extraction
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          VERSION=${VERSION#v}  # Remove 'v' prefix if present
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Build Linux AMD64
+        run: |
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o panglb-linux-amd64 main.go
+          tar czf panglb-linux-amd64.tar.gz panglb-linux-amd64
+
+      - name: Build Linux ARM64
+        run: |
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o panglb-linux-arm64 main.go
+          tar czf panglb-linux-arm64.tar.gz panglb-linux-arm64
+
+      - name: Build macOS AMD64
+        run: |
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o panglb-darwin-amd64 main.go
+          tar czf panglb-darwin-amd64.tar.gz panglb-darwin-amd64
+
+      - name: Build macOS ARM64
+        run: |
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o panglb-darwin-arm64 main.go
+          tar czf panglb-darwin-arm64.tar.gz panglb-darwin-arm64
+
+      - name: Build Windows AMD64
+        run: |
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o panglb-windows-amd64.exe main.go
+          zip panglb-windows-amd64.zip panglb-windows-amd64.exe
+
+      - name: Generate checksums
+        run: |
+          sha256sum panglb-*.tar.gz panglb-*.zip > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            ## Release ${{ steps.version.outputs.tag }}
+
+            ### Downloads
+
+            - **Linux AMD64**: `panglb-linux-amd64.tar.gz`
+            - **Linux ARM64**: `panglb-linux-arm64.tar.gz`
+            - **macOS AMD64**: `panglb-darwin-amd64.tar.gz`
+            - **macOS ARM64**: `panglb-darwin-arm64.tar.gz`
+            - **Windows AMD64**: `panglb-windows-amd64.zip`
+
+            ### Checksums
+
+            See `checksums.txt` for SHA256 checksums of all binaries.
+
+            ### Installation
+
+            Extract the archive for your platform and move the binary to your desired location:
+
+            ```bash
+            # Example for Linux AMD64
+            tar xzf panglb-linux-amd64.tar.gz
+            sudo mv panglb-linux-amd64 /usr/local/bin/panglb
+            ```
+          files: |
+            panglb-linux-amd64.tar.gz
+            panglb-linux-arm64.tar.gz
+            panglb-darwin-amd64.tar.gz
+            panglb-darwin-arm64.tar.gz
+            panglb-windows-amd64.zip
+            checksums.txt
+          generate_release_notes: true
